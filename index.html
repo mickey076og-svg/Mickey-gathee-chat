@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Chat | Hosted by Mickey Gathee</title>
+  <style>
+    body{margin:0; font-family:'Segoe UI',sans-serif; background:#0a0a0a; color:#fff; display:flex; justify-content:center}
+    #container{width:100%; max-width:480px; height:100vh; display:flex; flex-direction:column; background:#121212; box-shadow:0 0 20px rgba(37,211,102,0.2)}
+    #header{background:#1f1f1f; padding:15px; text-align:center; border-bottom:2px solid #25D366}
+    #header h2{margin:0; color:#25D366; letter-spacing:1px}
+    #header p{margin:4px 0 0; font-size:12px; opacity:0.7}
+    #login{padding:25px 20px}
+    input{width:100%; box-sizing:border-box; padding:14px; margin:8px 0; border-radius:10px; border:1px solid #333; background:#1e1e1e; color:#fff; outline:none; font-size:15px}
+    input:focus{border-color:#25D366}
+    button{width:100%; padding:14px; border:none; border-radius:10px; background:#25D366; color:#000; font-weight:bold; cursor:pointer; margin-top:8px; font-size:15px}
+    button:active{transform:scale(0.98)}
+    button.hostBtn{background:#fff; color:#000; border:2px solid #25D366; margin-top:15px}
+    #chatArea{display:none; flex-direction:column; height:100%}
+    #messages{flex:1; overflow-y:auto; padding:15px; background:#000; display:flex; flex-direction:column}
+    .msg{margin:8px 0; padding:10px 12px; border-radius:12px; max-width:80%; word-wrap:break-word; line-height:1.4}
+    .myMsg{background:#25D366; color:#000; margin-left:auto; border-bottom-right-radius:2px}
+    .otherMsg{background:#2a2a2a; margin-right:auto; border-bottom-left-radius:2px}
+    .hostMsg{background:linear-gradient(90deg,#25D366,#128C7E); color:#fff; border:1px solid gold; margin-right:auto; box-shadow:0 0 8px gold}
+    .system{font-size:11px; text-align:center; color:#888; margin:12px 0; font-style:italic}
+    #inputArea{display:flex; gap:8px; padding:12px; background:#1f1f1f; align-items:center}
+    #inputArea input{flex:1; margin:0}
+    #inputArea button{width:75px; margin:0}
+    #hostPanel{display:none; padding:10px; background:#1a1a1a; border-top:1px solid #333}
+    #usersList{font-size:12px; opacity:0.8; padding:8px 15px; background:#181818; border-bottom:1px solid #222}
+  </style>
+</head>
+<body>
+<div id="container">
+  <div id="header">
+    <h2>🔒 MICKEY GATHEE CHAT</h2>
+    <p>Host: Mickey Gathee | Private & Secure | Encrypted</p>
+  </div>
+
+  <div id="login">
+    <input id="username" placeholder="Your Name (e.g. Kevin)">
+    <input id="roomCode" placeholder="Secret Room Code (e.g. gathee-private)">
+    <button onclick="joinAsUser()">Join as Guest</button>
+    <button class="hostBtn" onclick="joinAsHost()">👑 Login as HOST - Mickey Gathee</button>
+    <p style="font-size:11px; margin-top:20px; text-align:center; opacity:0.5">Share the same Room Code with friends.<br>Only people with code can see messages.</p>
+  </div>
+
+  <div id="chatArea">
+    <div id="usersList">Online: 0</div>
+    <div id="messages"></div>
+    <div id="hostPanel">
+      <button onclick="clearChat()" style="background:#ff3b30; color:#fff; padding:10px">🗑️ Clear Chat For Everyone (Host Only)</button>
+    </div>
+    <div id="inputArea">
+      <input id="messageInput" placeholder="Type a message...">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let currentRoom = "";
+  let currentUser = "";
+  let isHost = false;
+  const HOST_NAME = "Mickey Gathee";
+
+  function joinAsUser(){
+    const user = document.getElementById('username').value.trim();
+    const room = document.getElementById('roomCode').value.trim();
+    if(!user || !room) return alert('Enter your name and room code');
+    currentUser = user;
+    currentRoom = room;
+    isHost = false;
+    startChat();
+  }
+
+  function joinAsHost(){
+    const room = document.getElementById('roomCode').value.trim();
+    if(!room) return alert('Enter room code for hosting');
+    const pin = prompt('Enter Host PIN for Mickey Gathee:');
+    if(pin !== 'mickey123') return alert('Wrong Host PIN! Default is: mickey123');
+    currentUser = `${HOST_NAME} [HOST]`;
+    currentRoom = room;
+    isHost = true;
+    startChat();
+  }
+
+  function startChat(){
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('chatArea').style.display = 'flex';
+    if(isHost) document.getElementById('hostPanel').style.display = 'block';
+    socket.emit('joinRoom', { username: currentUser, roomCode: currentRoom, isHost });
+  }
+
+  function sendMessage(){
+    const text = document.getElementById('messageInput').value.trim();
+    if(!text) return;
+    socket.emit('privateMessage', { roomCode: currentRoom, user: currentUser, text });
+    document.getElementById('messageInput').value = "";
+  }
+
+  socket.on('privateMessage', (data) => {
+    const div = document.createElement('div');
+    const isMe = data.user === currentUser;
+    div.className = `msg ${isMe ? 'myMsg' : data.isHost ? 'hostMsg' : 'otherMsg'}`;
+    div.innerHTML = `<b>${data.user}</b><br>${data.text}<br><small style="opacity:0.6; font-size:10px">${data.time}</small>`;
+    document.getElementById('messages').appendChild(div);
+    document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+  });
+
+  socket.on('systemMessage', (msg) => {
+    const div = document.createElement('div');
+    div.className = 'system';
+    div.textContent = `--- ${msg} ---`;
+    document.getElementById('messages').appendChild(div);
+    document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+  });
+
+  socket.on('updateUsers', (users) => {
+    document.getElementById('usersList').textContent = `Online: ${users.length} | Room: ${currentRoom} | Host: Mickey Gathee`;
+  });
+
+  socket.on('clearChat', () => {
+    document.getElementById('messages').innerHTML = "";
+  });
+
+  socket.on('kicked', () => {
+    alert('You were removed by Host Mickey Gathee');
+    location.reload();
+  });
+
+  document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') sendMessage();
+  });
+
+  function clearChat(){
+    if(isHost && confirm('Clear chat for everyone?')){
+      socket.emit('hostClearChat', currentRoom);
+    }
+  }
+</script>
+</body>
+  </html>
