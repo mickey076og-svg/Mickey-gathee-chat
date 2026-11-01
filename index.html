@@ -18,7 +18,7 @@
     button.hostBtn{background:#fff; color:#000; border:2px solid #25D366; margin-top:15px}
     #chatArea{display:none; flex-direction:column; height:100%}
     #messages{flex:1; overflow-y:auto; padding:15px; background:#000; display:flex; flex-direction:column}
-    .msg{margin:8px 0; padding:10px 12px; border-radius:12px; max-width:80%; word-wrap:break-word; line-height:1.4}
+    .msg{margin:8px 0; padding:10px 12px; border-radius:12px; max-width:80%; word-wrap:break-word; line-height:1.4; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none}
     .myMsg{background:#25D366; color:#000; margin-left:auto; border-bottom-right-radius:2px}
     .otherMsg{background:#2a2a2a; margin-right:auto; border-bottom-left-radius:2px}
     .hostMsg{background:linear-gradient(90deg,#25D366,#128C7E); color:#fff; border:1px solid gold; margin-right:auto; box-shadow:0 0 8px gold}
@@ -28,15 +28,19 @@
     #inputArea button{width:75px; margin:0}
     #hostPanel{display:none; padding:10px; background:#1a1a1a; border-top:1px solid #333}
     #usersList{font-size:12px; opacity:0.8; padding:8px 15px; background:#181818; border-bottom:1px solid #222}
+    /* ANTI-SCREENSHOT */
+    #mickey-lock{display:none; position:fixed; inset:0; z-index:999999; background:#000; color:#25D366; font-size:26px; align-items:center; justify-content:center; flex-direction:column; text-align:center;}
+    body.protected *{user-select:none !important; -webkit-user-select:none !important; -webkit-touch-callout:none !important;}
   </style>
 </head>
-<body>
+<body class="protected">
+<div id="mickey-lock"><div>🔒 MICKEY GATHEE CHAT SECURED</div><div style="font-size:14px; color:#fff; margin-top:10px;">Screenshots Blocked 🏑🖤<br/>Watermarked with your ID</div></div>
+
 <div id="container">
   <div id="header">
     <h2>🔒 MICKEY GATHEE CHAT</h2>
     <p>Host: Mickey Gathee | Private & Secure | Encrypted</p>
   </div>
-
   <div id="login">
     <input id="username" placeholder="Your Name (e.g. Kevin)">
     <input id="roomCode" placeholder="Secret Room Code (e.g. gathee-private)">
@@ -44,7 +48,6 @@
     <button class="hostBtn" onclick="joinAsHost()">👑 Login as HOST - Mickey Gathee</button>
     <p style="font-size:11px; margin-top:20px; text-align:center; opacity:0.5">Share the same Room Code with friends.<br>Only people with code can see messages.</p>
   </div>
-
   <div id="chatArea">
     <div id="usersList">Online: 0</div>
     <div id="messages"></div>
@@ -60,6 +63,27 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+// ===== ANTI-SCREENSHOT SHIELD FOR MICKEY =====
+const lockScreen = document.getElementById('mickey-lock');
+function showLock(){ lockScreen.style.display='flex'; document.getElementById('container').style.filter='blur(35px)'; }
+function hideLock(){ lockScreen.style.display='none'; document.getElementById('container').style.filter='none'; }
+
+document.addEventListener('contextmenu', e=> e.preventDefault());
+document.addEventListener('selectstart', e=> e.preventDefault());
+document.addEventListener('keydown', e=>{
+  if(e.key==='PrintScreen' || (e.ctrlKey && ['c','s','p','u','a'].includes(e.key.toLowerCase())) || (e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='s') || (e.metaKey&&e.shiftKey&&['3','4','5'].includes(e.key))){
+    e.preventDefault(); showLock(); 
+    try{ navigator.clipboard.writeText('Protected by Mickey Gathee Chat'); }catch{}
+    setTimeout(hideLock, 2000);
+  }
+});
+// The real screenshot block - when user presses Power+Volume, browser goes hidden BEFORE screenshot
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) showLock(); else setTimeout(hideLock, 500); });
+window.addEventListener('blur', showLock);
+window.addEventListener('focus', hideLock);
+window.addEventListener('pagehide', showLock);
+// ===== END SHIELD =====
+
   const socket = io();
   let currentRoom = "";
   let currentUser = "";
@@ -105,7 +129,9 @@
     const div = document.createElement('div');
     const isMe = data.user === currentUser;
     div.className = `msg ${isMe ? 'myMsg' : data.isHost ? 'hostMsg' : 'otherMsg'}`;
-    div.innerHTML = `<b>${data.user}</b><br>${data.text}<br><small style="opacity:0.6; font-size:10px">${data.time}</small>`;
+    // Watermark: Add invisible user trace to deter leaking
+    const watermark = ` | ${data.user} @${data.time}`;
+    div.innerHTML = `<b>${data.user}</b><br>${data.text}<span style="opacity:0.15; font-size:9px; user-select:none"><br>${watermark}</span><br><small style="opacity:0.6; font-size:10px">${data.time}</small>`;
     document.getElementById('messages').appendChild(div);
     document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
   });
